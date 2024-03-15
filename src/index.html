@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Driver Interface</title>
+</head>
+<body>
+<h1>Driver Interface</h1>
+<button id="nobeacon">Call Smart Contract directly</button>
+<button id="button-connect">Scan Gates</button>
+<br/>
+<br/>
+<script type="module">
+
+    function arrayBufferToBase64(buffer) {
+        let binary = '';
+        let bytes = new Uint8Array(buffer);
+        let len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return window.btoa(binary);
+    }
+
+    async function encryptMessage(publicKey, encodedMessage) {
+        return await window.crypto.subtle.encrypt(
+            {
+                name: "RSA-OAEP",
+            },
+            publicKey,
+            encodedMessage,
+        );
+    }
+
+    function str2ab(str) {
+        const buf = new ArrayBuffer(str.length);
+        const bufView = new Uint8Array(buf);
+        for (let i = 0, strLen = str.length; i < strLen; i++) {
+            bufView[i] = str.charCodeAt(i);
+        }
+        return buf;
+    }
+
+    async function importRsaKey(pem) {
+        const pemHeader = "-----BEGIN PUBLIC KEY-----";
+        const pemFooter = "-----END PUBLIC KEY-----";
+        const pemContents = pem.substring(
+            pemHeader.length,
+            pem.length - pemFooter.length - 1,
+        );
+
+        const binaryDerString = window.atob(pemContents);
+        const binaryDer = str2ab(binaryDerString);
+
+        return await window.crypto.subtle.importKey(
+            "spki",
+            binaryDer,
+            {
+                name: "RSA-OAEP",
+                hash: "SHA-256",
+            },
+            true,
+            ["encrypt"],
+        );
+    }
+
+    function convertToTypeBytes16(uuid) {
+        let uuidWithoutHyphens = uuid.replace(/-/g, '').toLowerCase();
+        return '0x' + uuidWithoutHyphens;
+    }
+
+    import {ethers} from "https://cdn.jsdelivr.net/npm/ethers@6.10.0/+esm";
+
+    async function callSmartContract(uuid, pubKey) {
+        let provider = new ethers.BrowserProvider(window.ethereum);
+        let signer = await provider.getSigner();
+        let accounts = await provider.listAccounts();
+        let address = await accounts[0].getAddress();
+        let balance = await provider.getBalance(address);
+        console.log("balance1: ", balance);
+
+
+        const contractAddress = "0x4F64020A9B62c2AcBfb7D3A4E97DB5dD21b174dC";
+        const abi = [
+            {
+                "inputs": [],
+                "stateMutability": "nonpayable",
+                "type": "constructor"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": false,
+                        "internalType": "bytes16",
+                        "name": "gateUUID",
+                        "type": "bytes16"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "address",
+                        "name": "carAddress",
+                        "type": "address"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "bool",
+                        "name": "accessGranted",
+                        "type": "bool"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "string",
+                        "name": "content",
+                        "type": "string"
+                    }
+                ],
+                "name": "AccessAttempt",
+                "type": "event"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "bytes16",
+                        "name": "gateUUID",
+                        "type": "bytes16"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "carAddress",
+                        "type": "address"
+                    }
+                ],
+                "name": "denyAccess",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "bytes16",
+                        "name": "gateUUID",
+                        "type": "bytes16"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "carAddress",
+                        "type": "address"
+                    }
+                ],
+                "name": "grantAccess",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "owner",
+                "outputs": [
+                    {
+                        "internalType": "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "bytes16",
+                        "name": "gateUUID",
+                        "type": "bytes16"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "content",
+                        "type": "string"
+                    }
+                ],
+                "name": "requestAccess",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            }
+        ];
+
+        const contract = new ethers.Contract(contractAddress, abi, signer);
+
+        let gateUUID = convertToTypeBytes16(uuid);
+
+        const message = {"requestedAt": new Date().toISOString(), "carAddress": address, "nonce": crypto.randomUUID()};
+
+        let textEncoder = new TextEncoder();
+        const encodedMessage = textEncoder.encode(JSON.stringify(message));
+
+        let publicKey = await importRsaKey(pubKey);
+
+        const encryptedMessage = await encryptMessage(publicKey, encodedMessage);
+
+        const base64 = arrayBufferToBase64(encryptedMessage)
+
+        console.log("original payload:", message);
+        console.log("encrypted payload in base64: " + base64)
+
+        let result = await contract.requestAccess(gateUUID, base64);
+        console.log("hash: " + result.hash);
+        let transaction = await result.wait();
+        console.log("blockNumber: " + transaction.blockNumber);
+    }
+
+    document.getElementById('nobeacon')?.addEventListener('click', () => {
+        let gateUUID = "c32d8b45-92fe-44f6-8b61-42c2107dfe87";
+        let pubKey = `-----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2YpjfVKjJeTBVhf/bNBX
+    YGa76E8LpgOseZEVQYzkbRZg42x37kPJm57LXlMp/G5RdFjjznVWeXBFOwdiTwcv
+    DZrnhCmDHMORM8k2uqisVbPSuOeCsYQF/MaTHgBB849O0V8+xgVYJ75SsZa5RmdE
+    6/suxcyCGhA6vxkePpbE0j8maSryUY3Dn61jaMC/Z+F+BDrf1uJOy8lR+AvWEep+
+    eZdc1gZkZ4sLPGOqnpOWyz9hTbOlYRgpFf4pYHrLjbTFtF36rmqbqSwLp3I0c+Sg
+    dqRmKUFIqRJ/omF3OEUW2zwwJ97774Yf2oIuwAsVdT5gfe3oEZthFycFQ5YhuY/H
+    CQIDAQAB
+    -----END PUBLIC KEY-----`;
+        return callSmartContract(gateUUID, pubKey);
+    });
+
+    document.getElementById('button-connect')?.addEventListener('click', async function () {
+        if ('bluetooth' in navigator) {
+            // Request a Bluetooth device.
+            const device = await navigator.bluetooth.requestDevice({
+                filters: [{
+                    namePrefix: 'SmartGate'
+                }, {
+                    namePrefix: 'raspberry'
+                }],
+                optionalServices: ['8b84fde8-caec-4baa-863e-15e347949845']
+            });
+            let gattServer = await device.gatt.connect();
+            let services = await gattServer.getPrimaryServices();
+            console.log(services);
+            let service = services[0];
+            let serviceUUID = service.uuid;
+            console.log("service uuid", serviceUUID);
+            let characteristics = await service.getCharacteristics();
+            let characteristic = characteristics[0];
+            let gateUUID = characteristic.uuid;
+            console.log("characteristic uuid/gateUUID", gateUUID);
+
+            let value = await characteristic.readValue();
+            const body = new TextDecoder().decode(value);
+            let parsed = JSON.parse(body);
+            console.log('Parsed:', parsed);
+            const btn = document.createElement("button");
+            btn.innerHTML = "Open [" + parsed.gateName + "] with gate UUID [" + gateUUID + "]";
+            btn.addEventListener('click', () => callSmartContract(gateUUID, parsed.gatePublicKey));
+            document.body.appendChild(btn);
+        }
+    });
+
+
+</script>
+</body>
+</html>

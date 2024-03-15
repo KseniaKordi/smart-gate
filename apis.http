@@ -1,0 +1,30 @@
+#
+#POST http://localhost:3001/access
+#Content-Type: application/json
+#
+#{
+#  "address": "ksu2",
+#  "content": "encrypted"
+#}
+#
+####
+#GET http://localhost:3001
+#
+####
+#GET http://localhost:3002/address/ksu2
+
+
+###
+POST http://localhost:3001/access
+Content-Type: application/json
+
+{
+  "gateUUID": "c32d8b45-92fe-44f6-8b61-42c2107dfe87",
+  "mnemonic": "hollow useful dry sustain key retreat goat become black ramp trumpet craft thumb ozone viable near topic cloth match alarm hazard legal afford speak",
+  "nonce": "c32d8b45-92fe-44f6-8b61-42c2107dfe87"
+}
+
+###
+GET http://localhost:3002/nonce/c32d8b45-92fe-44f6-8b61-42c2107dfe87
+
+
