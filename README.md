@@ -1,5 +1,11 @@
 ### The Smart Gate Barrier System Application consists of several programs.
 
+Admin CLI - admin.ts
+
+Driver Application - index.html served by car.ts locally at http://localhost:3001
+
+Gate Application - gate.ts
+
 ## To start the communication process between the car and the gate, you need to do the following steps:
 
 1. Run ‘Gate’
@@ -30,7 +36,7 @@ Using command
 
 ### Package
 In the package file you can find the necessary scripts to run the programs.
-In order to start the gate you need to use ‘gate’ command, and in order to repeat the assessment of the system you need to use ‘gate-gatling’ command. 
+For example, in order to start the gate you need to use ‘gate’ command, and in order to repeat the assessment of the system you need to use ‘gate-gatling’ command. 
 
 
 
@@ -51,3 +57,6 @@ Using command
    
 Use command 
 `openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt -in keypair.pem -out pkcs8.key`
+
+
+
