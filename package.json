@@ -6,12 +6,9 @@
   "scripts": {
     "gate": "node --require ts-node/register src/gate.ts",
     "gate-gatling": "node --require ts-node/register src/gate-gatling.ts",
-    "producer": "node --require ts-node/register src/producer.ts",
-    "consumer": "node --require ts-node/register src/consumer.ts",
     "beacon": "node --require ts-node/register src/beacon.ts",
     "car": "node --require ts-node/register src/car.ts",
     "admin": "node --require ts-node/register src/admin.ts",
-    "eddystone": "node --require ts-node/register src/eddystone.ts",
     "build": "tsc",
     "test": "tsc && mocha --require ts-node/register"
   },
